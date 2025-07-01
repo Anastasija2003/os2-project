@@ -213,6 +213,7 @@ struct raid_info{
 };
 
 extern struct raid_info global_info_raid;*/
+extern struct sleeplock raid_lock;
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 

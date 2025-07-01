@@ -1,5 +1,6 @@
 
 #include "defs.h"
+#include "sleeplock.h"
 
 struct raid_info{
   enum RAID_TYPE raid_type;
@@ -9,6 +10,7 @@ struct raid_info{
   int total_disks;
   int total_blocks;
 };
+
 
 extern struct raid_info global_info_raid;
 
