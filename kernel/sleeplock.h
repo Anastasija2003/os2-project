@@ -8,3 +8,4 @@ struct sleeplock {
   int pid;           // Process holding lock
 };
 
+extern struct sleeplock raid_lock;

@@ -51,5 +51,4 @@ holdingsleep(struct sleeplock *lk)
   return r;
 }
 
-
-
+struct sleeplock raid_lock;

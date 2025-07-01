@@ -202,17 +202,7 @@ int disk_repaired_raid(int diskn);
 int info_raid(uint *blkn, uint *blks, uint *diskn);
 int destroy_raid();
 
-/*
-struct raid_info{
-    enum RAID_TYPE raid_type;
-    int initialized;
-    int broken;
-    int disks[7];
-    int total_disks;
-    int total_blocks;
-};
 
-extern struct raid_info global_info_raid;*/
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 

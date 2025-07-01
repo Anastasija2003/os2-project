@@ -8,7 +8,7 @@ int
 main(int argc, char *argv[])
 {
   
-  int ret = init_raid(RAID0);
+  int ret = init_raid(RAID5);
   if(ret < 0){
     printf("init_raid failed 1\n");
     return -1;

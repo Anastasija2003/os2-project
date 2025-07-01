@@ -10,5 +10,5 @@ struct raid_info{
   int total_blocks;
 };
 
-extern struct raid_info global_info_raid;
 
+extern struct raid_info global_info_raid;
