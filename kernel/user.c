@@ -163,9 +163,10 @@ int write_raid(int blkn, uchar *data){
       parity_disk = DISKS-block%global_info_raid.total_disks;
       if(disk>=parity_disk) disk++;
     }
+    int parity_ok = global_info_raid.disks[parity_disk-1];
+    int disk_ok = global_info_raid.disks[disk];
     releasesleep(&raid_lock);
     wait(raid,disk+1,true);
-    read_block(parity_disk,block,parity);
     read_block(disk+1,block,temp);
     signal(raid,disk+1,true);
     for(int i = 0;i<BSIZE;i++) parity[i] ^= buf[i]^temp[i];
