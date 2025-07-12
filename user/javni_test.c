@@ -8,7 +8,7 @@ int
 main(int argc, char *argv[])
 {
   
-  int ret = init_raid(RAID0);
+  int ret = init_raid(RAID1);
   if(ret < 0){
     printf("init_raid failed 1\n");
     return -1;
@@ -55,10 +55,7 @@ void check_data(uint blocks, uchar *blk, uint block_size)
         printf("expected=%d got=%d", j + i, blk[j]);
         printf("Data in the block %d faulty\n", i);
         break;
-      }/*else if(i == blocks-1){
-        printf("expected=%c got=%c", (uchar)(j + i), blk[j]);
-        printf("Data in the block %d good\n", i);
-      }*/
+      }
     }
   }
 }

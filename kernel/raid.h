@@ -1,6 +1,3 @@
-
-#include "defs.h"
-
 struct raid_info{
   enum RAID_TYPE raid_type;
   int initialized;

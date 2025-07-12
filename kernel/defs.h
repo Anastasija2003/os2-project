@@ -192,27 +192,33 @@ void            virtio_disk_intr(int id);
 void            write_block(int diskn, int blockno, uchar* data);
 void            read_block(int diskn, int blockno, uchar* data);
 
+
+//lock.c
+void            wait0(int diskn,int reader);
+void            wait1(int diskn,int reader);
+void            wait4(int diskn,int reader);
+void            wait5(int diskn,int reader);
+void            wait0_1(int diskn,int reader);
+void            signal0(int diskn,int reader);
+void            signal1(int diskn,int reader);
+void            signal4(int diskn,int reader);
+void            signal5(int diskn,int reader);
+void            signal0_1(int diskn,int reader);
+
 //user.c
 enum RAID_TYPE {RAID0, RAID1, RAID0_1, RAID4, RAID5};
-int init_raid(enum RAID_TYPE raid);
-int read_raid(int blkn, uchar* data);
-int write_raid(int blkn, uchar* data);
-int disk_fail_raid(int diskn);
-int disk_repaired_raid(int diskn);
-int info_raid(uint *blkn, uint *blks, uint *diskn);
-int destroy_raid();
+void            ensure_raid_lock_initialized();
+void            wait_disk(enum RAID_TYPE raid, int diskn,int reader);
+void            signal_disk(enum RAID_TYPE raid, int diskn, int reader);
+int             init_raid(enum RAID_TYPE raid);
+int             read_raid(int blkn, uchar* data);
+int             write_raid(int blkn, uchar* data);
+int             disk_fail_raid(int diskn);
+int             disk_repaired_raid(int diskn);
+int             info_raid(uint *blkn, uint *blks, uint *diskn);
+int             destroy_raid();
 
-/*
-struct raid_info{
-    enum RAID_TYPE raid_type;
-    int initialized;
-    int broken;
-    int disks[7];
-    int total_disks;
-    int total_blocks;
-};
 
-extern struct raid_info global_info_raid;*/
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
 
