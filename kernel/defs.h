@@ -204,6 +204,7 @@ void            signal1(int diskn,int reader);
 void            signal4(int diskn,int reader);
 void            signal5(int diskn,int reader);
 void            signal0_1(int diskn,int reader);
+void            init_locks();
 
 //user.c
 enum RAID_TYPE {RAID0, RAID1, RAID0_1, RAID4, RAID5};

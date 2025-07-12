@@ -1,13 +1,12 @@
 #ifndef LOCK_H
 #define LOCK_H
 
-#include <stdbool.h>
+#include "spinlock.h"
+#include "sleeplock.h"
 
 // Struktura za lock info po disku
 struct lock_info {
-    int readers;
-    int writers;
-    struct sleeplock* locks[7];  // do 7 diskova podržano
+    struct sleeplock locks[7];  // do 7 diskova podržano
 };
 
 extern struct lock_info lock_disks;

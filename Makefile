@@ -54,11 +54,11 @@ endif
 
 
 ifndef DISKS
-DISKS := 5 # How many RAID disks
+DISKS := 6 # How many RAID disks
 endif
 
 ifndef DISK_SIZE
-DISK_SIZE := 134217728
+DISK_SIZE := 1048576
 endif
 
 RAID_DISKS = $(shell count=`expr $(DISKS) - 1`; for i in `seq 0 $$count`; do echo -n "disk_$$i.img "; done)
@@ -152,6 +152,7 @@ UPROGS=\
 	$U/_zombie\
 	$U/_maxout_vm\
 	$U/_javni_test\
+	$U/_raid0\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

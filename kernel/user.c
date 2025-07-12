@@ -4,23 +4,22 @@
 #include "defs.h"
 #include "raid.h"
 #include "fs.h"
-#include "spinlock.h"
-#include "sleeplock.h"
 #include "lock.h"
 #include "param.h"
 #include "proc.h"
 #include <stdbool.h>
-uchar buf[BSIZE];
-uchar parity[BSIZE];
-uchar temp[BSIZE];
-uchar blck[BSIZE];
+//uchar buf[BSIZE];
+//uchar parity[BSIZE];
+//uchar temp[BSIZE];
 
 static int raid_lock_initialized = 0;
 
 void ensure_raid_lock_initialized() {
   if (!raid_lock_initialized) {
+    init_locks();
     initsleeplock(&raid_lock, "raid_lock");
     raid_lock_initialized = 1;
+    printf("Inicijalizovano\n");
   }
 }
 
@@ -78,40 +77,47 @@ int init_raid(enum RAID_TYPE raid){ // NEMA PARALELIZACIJE
 }
 
 int read_raid(int blkn, uchar *data){
+  uchar temp[BSIZE], parity[BSIZE];
+  uchar *buf = kalloc();
+  if (!buf) return -1;
   ensure_raid_lock_initialized();	
   acquiresleep(&raid_lock);
   if(!global_info_raid.initialized || global_info_raid.broken==1) {
-	releasesleep(&raid_lock);
-	return -1;
+    releasesleep(&raid_lock);
+    return -1;
   }
   if(blkn<0 || blkn>=global_info_raid.total_blocks) {
-	releasesleep(&raid_lock);
-	return -1;
+    releasesleep(&raid_lock);
+    return -1;
   }
   enum RAID_TYPE raid = global_info_raid.raid_type;
+  int total_disks = global_info_raid.total_disks;
+  //int total_blocks = global_info_raid.total_blocks;
+  int disks[7];
+  for(int i = 0;i<7;i++){
+    disks[i] = global_info_raid.disks[i];
+  }
+  releasesleep(&raid_lock);
   blkn++;
   if(raid== RAID4 || raid == RAID5){
-    int disk = blkn%global_info_raid.total_disks;
-    int block = blkn/global_info_raid.total_disks;
+    int disk = blkn%total_disks;
+    int block = blkn/total_disks;
     int parity_disk = DISKS;
-    if(global_info_raid.raid_type == RAID5){
-      disk = blkn%(global_info_raid.total_disks-1);
-      block = blkn/(global_info_raid.total_disks-1);
-      parity_disk = DISKS-block%global_info_raid.total_disks;
+    if(raid == RAID5){
+      disk = blkn%(total_disks-1);
+      block = blkn/(total_disks-1);
+      parity_disk = DISKS-block%total_disks;
       if(disk>=parity_disk) disk++;
     }
 
-    if(global_info_raid.disks[disk]==0){
+    if(disks[disk]==0){
       memset(buf,0,BSIZE);
-      int disks = global_info_raid.total_disks;
-      releasesleep(&raid_lock);
-      for(int i = 0;i<disks;i++){
+      for(int i = 0;i<total_disks;i++){
         if(i != disk){
           if(i == 0 && block == 0) continue;
-          if(i == parity_disk) continue;
-          wait_disk(raid,i+1,1);
+          wait_disk(raid,i,1);
           read_block(i+1,block,temp);
-          signal_disk(raid,i+1,1);
+          signal_disk(raid,i,1);
           for(int j = 0;j<BSIZE;j++) buf[j] ^= temp[j];
         }
       }
@@ -120,7 +126,6 @@ int read_raid(int blkn, uchar *data){
       signal_disk(raid,parity_disk,1);
       for(int i = 0;i<BSIZE;i++) buf[i] ^= parity[i];
     }else {
-      releasesleep(&raid_lock);
       wait_disk(raid,disk+1,1);
       read_block(disk+1,block,buf);
       signal_disk(raid,disk+1,1);
@@ -131,60 +136,68 @@ int read_raid(int blkn, uchar *data){
     int block = blkn%num;
     for(int i = 0;i<DISKS-1;i++){
       if(global_info_raid.disks[i]==1) {
-	releasesleep(&raid_lock);
-        wait_disk(raid,i+1,true);
-	read_block(i+1,block,buf);
-        signal_disk(raid,i+1,true);
-	break;
+        wait_disk(raid,i+1,1);
+	      read_block(i+1,block,buf);
+        signal_disk(raid,i+1,1);
+	      break;
       }
     }
   }else{
-     int disk = blkn%global_info_raid.total_disks;
-     int block = blkn/global_info_raid.total_disks;
-     if(global_info_raid.disks[disk] == 0 && global_info_raid.raid_type == RAID0_1){
-       int disk_read = global_info_raid.total_disks + disk+1;
-       releasesleep(&raid_lock);
+     int disk = blkn%total_disks;
+     int block = blkn/total_disks;
+     if(disks[disk] == 0 && raid == RAID0_1){
+       int disk_read = total_disks + disk+1;
        wait_disk(raid,disk_read,1);
        read_block(disk_read, block, buf);
        signal_disk(raid,disk_read,1);
      }else{
-       releasesleep(&raid_lock);
-       wait_disk(raid,disk+1,1);
-       read_block(disk+1, block, buf);
-       signal_disk(raid,disk+1,1);
+        wait0(disk,1);
+        read_block(disk+1, block, buf);
+        signal0(disk,1);
      }
   }
+
   struct proc *p = myproc();
   copyout(p->pagetable,(uint64)data,(char*)buf,BSIZE);
+  kfree(buf);
   return 0;
 }
 
 int write_raid(int blkn, uchar *data){
+  uchar temp[BSIZE], parity[BSIZE];
+  uchar *buf = kalloc();
+  if (!buf) return -1;
   ensure_raid_lock_initialized();	
   acquiresleep(&raid_lock);
   if(!global_info_raid.initialized || global_info_raid.broken==1) {
     releasesleep(&raid_lock);
-	return -1;
+	  return -1;
   }
   if(blkn<0 || blkn>=global_info_raid.total_blocks) {
     releasesleep(&raid_lock);
   	return -1;
   }
+  enum RAID_TYPE raid = global_info_raid.raid_type;
+  int total_disks = global_info_raid.total_disks;
+  ///int total_blocks = global_info_raid.total_blocks;
+  int disks[7];
+  for(int i = 0;i<7;i++){
+    disks[i] = global_info_raid.disks[i];
+  }
+  releasesleep(&raid_lock);
   blkn++;
   struct proc *p = myproc();
   copyin(p->pagetable,(char*)buf,(uint64)data,BSIZE);
-  enum RAID_TYPE raid = global_info_raid.raid_type;
   if(raid == RAID4 || raid == RAID5){
-    int disk = blkn%global_info_raid.total_disks;
-    int block = blkn/global_info_raid.total_disks;
+    int disk = blkn%total_disks;
+    int block = blkn/total_disks;
     int parity_disk = DISKS;
-    if(global_info_raid.raid_type == RAID5){
-      disk = blkn%(global_info_raid.total_disks-1);
-      block = blkn/(global_info_raid.total_disks-1);
-      parity_disk = DISKS-block%global_info_raid.total_disks;
+    if(raid == RAID5){
+      disk = blkn%(total_disks-1);
+      block = blkn/(total_disks-1);
+      parity_disk = DISKS-block%total_disks;
       if(disk>=parity_disk) disk++;
     }
-    releasesleep(&raid_lock);
     wait_disk(raid,disk+1,1);
     read_block(disk+1,block,temp);
     signal_disk(raid,disk+1,1);
@@ -193,38 +206,34 @@ int write_raid(int blkn, uchar *data){
     write_block(disk+1,block,buf);
     write_block(parity_disk,block,parity);
     signal_disk(raid,disk+1,0);
-  }else if(global_info_raid.raid_type == RAID1){
+  }else if(raid == RAID1){
     int num = DISK_SIZE/BSIZE;
     int block = blkn%num;
     for(int i = 0;i<DISKS-1;i++){
-	if(global_info_raid.disks[i]==1){
-	   releasesleep(&raid_lock);
-           wait_disk(raid,i+1,false);
-	   write_block(i+1,block,buf);
-           signal_disk(raid,i+1,false);
-           acquiresleep(&raid_lock);
-       }
+      if(disks[i]==1){
+        wait_disk(raid,i+1,false);
+        write_block(i+1,block,buf);
+        signal_disk(raid,i+1,false);
+      }
     }
-    releasesleep(&raid_lock);
   }else{
-    int disk = blkn%global_info_raid.total_disks;
-    int block = blkn/global_info_raid.total_disks;
+    int disk = blkn%total_disks;
+    int block = blkn/total_disks;
     if(raid == RAID0){
-      releasesleep(&raid_lock);
-      wait_disk(raid,disk+1,0);
+      wait_disk(raid,disk,0);
       write_block(disk+1, block, buf);
-      signal_disk(raid,disk+1,0);
+      signal_disk(raid,disk,0);
     }else{
-      int disk1 = global_info_raid.disks[disk];
-      int backup = global_info_raid.total_disks+disk;
+      int disk1 = disks[disk];
+      int backup = total_disks+disk;
       int disk2 = global_info_raid.disks[backup];
-      releasesleep(&raid_lock);
       wait_disk(raid,disk+1,0);
       if(disk1 == 1) write_block(disk+1, block, buf);
       if(disk2 == 1) write_block(backup+1, block, buf);
       signal_disk(raid,disk+1,0);
     }
   }
+  kfree(buf);
   return 0;
 }
 int disk_fail_raid(int diskn){//NEMA PARALELIZACIJE
@@ -251,14 +260,11 @@ int disk_fail_raid(int diskn){//NEMA PARALELIZACIJE
   }
   write_block(1,0,(uchar*)&global_info_raid);
   releasesleep(&raid_lock);
-  for(int i = 0;i<BSIZE;i++) blck[i]=0;
-  for(int i = 0;i<DISK_SIZE/BSIZE;i++){
-    write_block(diskn,i,blck);
-  }
   return 0;
 }
 
 int disk_repaired_raid(int diskn){
+  uchar buf[BSIZE], temp[BSIZE], parity[BSIZE];
   ensure_raid_lock_initialized();	
   acquiresleep(&raid_lock);
   if(diskn<1 || diskn>global_info_raid.total_disks || global_info_raid.initialized == 0 || global_info_raid.broken==1) {
