@@ -207,7 +207,7 @@ int write_raid(int blkn, uchar *data){
     int dummy = 2;
     wait_disk(raid, &dummy, 0);
     for(int i = 1; i < DISKS; i++) {
-      if(disks[i]==1) write_block(i, blkn, buf);
+      if(disks[i-1]==1) write_block(i, blkn, buf);
     }
     signal_disk(raid, dummy, 0);
   }else{

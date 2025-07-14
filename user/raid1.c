@@ -55,7 +55,7 @@ main(void)
       pids[i] = pid;
       l = step * (i + 0);
       u = step * (i + 1);
-      printf("l = %d, u = %d\n", l, u);
+      //printf("l = %d, u = %d\n", l, u);
       break;
     }
   }
