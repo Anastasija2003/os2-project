@@ -70,7 +70,45 @@ void wait1(int *diskn, int reader) {
 void wait4(int *diskn, int reader) {}
 void wait5(int *diskn, int reader) {}
 void wait0_1(int *diskn, int reader) {
-
+    int backup_disk = (*diskn) + DISKS/2;
+    if (reader == 1) {
+        while (1) {
+            acquire(&raid_lock_p);
+            if (lock.busy[*diskn] == 0 && lock.works[*diskn] == 1) {
+                lock.busy[*diskn] = 1;
+                release(&raid_lock_p);
+                acquiresleep(&lock.locks[*diskn]);
+                return;
+            }
+            release(&raid_lock_p);
+            acquire(&raid_lock_p);
+            if(lock.busy[backup_disk]==0 && lock.works[backup_disk]==1){
+                lock.busy[backup_disk] = 1;
+                *diskn = backup_disk;
+                release(&raid_lock_p);
+                acquiresleep(&lock.locks[backup_disk]);
+                return;
+            }
+            release(&raid_lock_p);
+        }
+    } else {
+        while (1) {
+            int all_free = 1;
+            acquire(&raid_lock_p);
+            if (lock.busy[*diskn] == 1 || lock.busy[backup_disk]==1) {
+                all_free = 0;
+            }
+            if (all_free) {
+                if(lock.works[*diskn]) lock.busy[*diskn] = 1;
+                if(lock.works[backup_disk]) lock.busy[backup_disk] = 1;
+                release(&raid_lock_p);
+                break;
+            }
+            release(&raid_lock_p);
+        }
+        acquiresleep(&lock.locks[*diskn]);
+        acquiresleep(&lock.locks[backup_disk]);
+    }
 }
 
 void signal0(int diskn, int reader){
@@ -98,5 +136,18 @@ void signal1(int diskn, int reader) {
 void signal4(int diskn, int reader) {}
 void signal5(int diskn, int reader) {}
 void signal0_1(int diskn, int reader) {
-    
+    if (reader == 1) {
+        acquire(&raid_lock_p);
+        lock.busy[diskn] = 0;
+        release(&raid_lock_p);
+        releasesleep(&lock.locks[diskn]);
+    } else {
+        acquire(&raid_lock_p);
+        int backup_disk = diskn + DISKS/2;
+        lock.busy[diskn] = 0;
+        lock.busy[backup_disk] = 0;
+        release(&raid_lock_p);
+        releasesleep(&lock.locks[diskn]);
+        releasesleep(&lock.locks[backup_disk]);
+    }
 }

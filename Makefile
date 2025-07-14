@@ -54,7 +54,7 @@ endif
 
 
 ifndef DISKS
-DISKS := 6 # How many RAID disks
+DISKS := 7 # How many RAID disks
 endif
 
 ifndef DISK_SIZE
@@ -154,6 +154,9 @@ UPROGS=\
 	$U/_javni_test\
 	$U/_raid0\
 	$U/_raid1\
+	$U/_raid0_1\
+	$U/_raid4\
+	$U/_raid5\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

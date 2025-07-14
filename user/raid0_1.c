@@ -67,7 +67,7 @@ main(void)
     for (int j = 0; j < blks; j++)
       data[j] = noise(i, j);
     int ret = 0;
-    //if(i % 50 == 0) printf("write_%d\n", i);
+    if(i % 50 == 0) printf("write_%d\n", i);
     if ((ret = write_raid(i, data)) < 0)
     {
       printf("blkn = %d\n", i);
@@ -78,17 +78,14 @@ main(void)
       disk_fail_raid(3);
       printf("izaso fail 3\n");
     }
-    if(i == 150) {
-      disk_fail_raid(4);
-      fail = 1;
-      printf("izaso fail 4\n");
-    }
     if(i == 720) { //500
-      //printf("USOREPAIR");
+      printf("USOREPAIR\n");
       //while(!fail);
-      if((ret = disk_repaired_raid(4)) < 0) {
+      if((ret = disk_repaired_raid(3)) < 0) {
         printf("Fatal error in repaired_raid pid = %d, ret = %d\n", getpid(), ret);
       }
+      disk_fail_raid(1);
+      printf("izaso fail 1\n");
     }
   }
 
@@ -96,7 +93,7 @@ main(void)
   {
     for (int j = 0; j < blks; j++)
       data[j] = 'c';
-    //if(i % 50 == 0) printf("read_%d\n", i);
+    if(i % 50 == 0) printf("read_%d\n", i);
     if (read_raid(i, data) < 0)
     {
       printf("Fatal error in read_raid\n");
@@ -119,7 +116,7 @@ main(void)
       wait(&status);
     }
     free(data);
-    //destroy_raid();
+    destroy_raid();
   }
 
   exit(0);

@@ -103,7 +103,7 @@ main(void)
       wait(&status);
     }
     free(data);
-    //destroy_raid();
+    destroy_raid();
   }
 
   exit(0);
