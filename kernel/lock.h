@@ -6,9 +6,13 @@
 
 // Struktura za lock info po disku
 struct lock_info {
+    int works[7];
+    int busy[7];
     struct sleeplock locks[7];  // do 7 diskova podržano
 };
 
-extern struct lock_info lock_disks;
+extern struct lock_info lock;
+extern struct spinlock raid_lock_p;
+
 #endif // LOCK_H
 

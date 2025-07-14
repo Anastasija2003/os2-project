@@ -194,22 +194,22 @@ void            read_block(int diskn, int blockno, uchar* data);
 
 
 //lock.c
-void            wait0(int diskn,int reader);
-void            wait1(int diskn,int reader);
-void            wait4(int diskn,int reader);
-void            wait5(int diskn,int reader);
-void            wait0_1(int diskn,int reader);
+void            wait0(int *diskn,int reader);
+void            wait1(int *diskn,int reader);
+void            wait4(int *diskn,int reader);
+void            wait5(int *diskn,int reader);
+void            wait0_1(int *diskn,int reader);
 void            signal0(int diskn,int reader);
 void            signal1(int diskn,int reader);
 void            signal4(int diskn,int reader);
 void            signal5(int diskn,int reader);
 void            signal0_1(int diskn,int reader);
 void            init_locks();
-
+void            disk_flag(int diskn, int flag);
 //user.c
 enum RAID_TYPE {RAID0, RAID1, RAID0_1, RAID4, RAID5};
 void            ensure_raid_lock_initialized();
-void            wait_disk(enum RAID_TYPE raid, int diskn,int reader);
+void            wait_disk(enum RAID_TYPE raid, int *diskn,int reader);
 void            signal_disk(enum RAID_TYPE raid, int diskn, int reader);
 int             init_raid(enum RAID_TYPE raid);
 int             read_raid(int blkn, uchar* data);

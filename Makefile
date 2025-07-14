@@ -153,6 +153,7 @@ UPROGS=\
 	$U/_maxout_vm\
 	$U/_javni_test\
 	$U/_raid0\
+	$U/_raid1\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -176,7 +177,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
 ifndef CPUS
-CPUS := 1
+CPUS := 2
 endif
 
 ifndef MEM
