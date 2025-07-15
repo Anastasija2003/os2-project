@@ -109,26 +109,22 @@ int read_raid(int blkn, uchar *data){
       if(disk>=parity_disk) disk++;
     }
 
+    wait_disk(raid,&disk,1);
     if(disks[disk]==0){
       memset(buf,0,BSIZE);
       for(int i = 0;i<total_disks;i++){
         if(i != disk){
           if(i == 0 && block == 0) continue;
-          wait_disk(raid,&i,1);
           read_block(i+1,block,temp);
-          signal_disk(raid,i,1);
           for(int j = 0;j<BSIZE;j++) buf[j] ^= temp[j];
         }
       }
-      wait_disk(raid,&parity_disk,1);
       read_block(parity_disk,block,parity);
-      signal_disk(raid,parity_disk,1);
       for(int i = 0;i<BSIZE;i++) buf[i] ^= parity[i];
     }else {
-      wait_disk(raid,&disk,1);
       read_block(disk+1,block,buf);
-      signal_disk(raid,disk,1);
     }
+    signal_disk(raid,disk,1);
   }
   else if(raid == RAID1){
     for(int i = 0;i<DISKS-1;i++){
@@ -236,7 +232,7 @@ int disk_fail_raid(int diskn){
   global_info_raid.disks[diskn-1] = 0;
   disk_flag(diskn-1,0);
   if(global_info_raid.raid_type == RAID0) global_info_raid.broken = 1;
-  else if(global_info_raid.raid_type == RAID4 || global_info_raid.raid_type == RAID5 || global_info_raid.raid_type == RAID0_1){
+  else if(global_info_raid.raid_type == RAID4 || global_info_raid.raid_type == RAID5){
     if(global_info_raid.broken==2) global_info_raid.broken = 1;
     else global_info_raid.broken = 2;
   }
@@ -249,6 +245,16 @@ int disk_fail_raid(int diskn){
       }
     }
     if(broken) global_info_raid.broken = 1;
+  }
+  else if(global_info_raid.raid_type == RAID0_1){
+    int i = global_info_raid.total_disks;
+    if(diskn>global_info_raid.total_disks) i = 0;
+    for(int j = i + global_info_raid.total_disks;i<j;i++){
+      if(i != diskn && global_info_raid.disks[i]==0){
+        global_info_raid.broken = 1;
+        break;
+      }
+    }
   }
   int d = 0;
   wait_disk(global_info_raid.raid_type,&d,0);
@@ -264,7 +270,7 @@ int disk_repaired_raid(int diskn){
   if(!buf) return -1;
   ensure_raid_lock_initialized();	
   acquiresleep(&raid_lock);
-  if(diskn<1 || diskn>global_info_raid.total_disks || global_info_raid.initialized == 0 || global_info_raid.broken==1) {
+  if(diskn<1 || diskn>DISKS || global_info_raid.initialized == 0 || global_info_raid.broken==1) {
     releasesleep(&raid_lock);
 	  return -1;
   }
@@ -283,6 +289,7 @@ int disk_repaired_raid(int diskn){
   int disk = diskn-1;
   wait_disk(raid,&disk,0);
   while(i<DISK_SIZE/BSIZE){
+    int stripe = 0;
     if(raid == RAID4 || raid == RAID5){
       memset(buf,0,BSIZE);
       int parity_disk = DISKS-i%total_disks;
@@ -307,9 +314,18 @@ int disk_repaired_raid(int diskn){
       }
     }
     else {
-		    read_block(diskn+total_disks,i,buf);
+        stripe = 0;
+        for(int i = 0;i<total_disks;i++) {
+          if(disks[i]==0){
+            stripe = 1;
+            break;
+          }
+        }
+		    read_block(diskn+stripe*total_disks,i,buf);
+        if(stripe == 0) stripe = -1;
+        else stripe = 0;
     }
-    write_block(diskn,i,buf);
+    write_block(diskn+stripe*total_disks,i,buf);
     i++;
   }
   disk_flag(diskn-1,1);

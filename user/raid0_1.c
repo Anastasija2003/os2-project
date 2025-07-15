@@ -78,14 +78,16 @@ main(void)
       disk_fail_raid(3);
       printf("izaso fail 3\n");
     }
+    if(i == 100){
+      disk_fail_raid(2);
+      printf("izaso fail 1\n");
+    }
     if(i == 720) { //500
       printf("USOREPAIR\n");
       //while(!fail);
       if((ret = disk_repaired_raid(3)) < 0) {
         printf("Fatal error in repaired_raid pid = %d, ret = %d\n", getpid(), ret);
       }
-      disk_fail_raid(1);
-      printf("izaso fail 1\n");
     }
   }
 
