@@ -4,6 +4,11 @@
 #include "defs.h"
 #include "lock.h"
 
+// Fallback definition if DISKS is not defined by compiler
+#ifndef DISKS
+#define DISKS 6
+#endif
+
 struct lock_info lock;
 struct spinlock raid_lock_p;
 
@@ -44,7 +49,9 @@ void require_all(){
 void disk_flag(int diskn, int flag){
     acquire(&raid_lock_p);
     lock.works[diskn] = flag;
-    lock.busy[diskn] = 0;
+    if(flag == 0) {
+        lock.busy[diskn] = 0;
+    }
     release(&raid_lock_p);
 }
 
@@ -145,12 +152,12 @@ void wait0_1(int *diskn, int reader) {
         while (1) {
             int all_free = 1;
             acquire(&raid_lock_p);
-            if (lock.works[*diskn]==1 && lock.busy[backup_disk] == 1) {
+            if (lock.works[*diskn]==1 && lock.busy[*diskn] == 1) {
                 all_free = 0;
             } 
-            if (lock.works[*diskn]==1 && lock.busy[backup_disk] == 1) {
+            if (lock.works[backup_disk]==1 && lock.busy[backup_disk] == 1) {
                 all_free = 0;
-            }    
+            }
             if (all_free) {
                 if(lock.works[*diskn]) lock.busy[*diskn] = 1;
                 if(lock.works[backup_disk]) lock.busy[backup_disk] = 1;
