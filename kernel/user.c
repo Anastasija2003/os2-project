@@ -102,7 +102,7 @@ int read_raid(int blkn, uchar *data){
     int disk = blkn%(total_disks-1);
     int block = blkn/(total_disks-1);
     if(raid == RAID5){
-      int parity_disk = DISKS-disk%total_disks-1; //proveri
+      int parity_disk = DISKS-block%total_disks; //proveri
       if(disk>=parity_disk) disk++;
     }
     int d = disk;
@@ -266,9 +266,9 @@ int disk_fail_raid(int diskn){
     }
   }
   int d = 0;
-  wait_disk(RAID0,&d,0);
+  wait_disk(global_info_raid.raid_type,&d,0);
   write_block(1,0,(uchar*)&global_info_raid);
-  signal_disk(RAID0,d,0);
+  signal_disk(global_info_raid.raid_type,d,0);
   releasesleep(&raid_lock);
   return 0;
 }
@@ -298,10 +298,8 @@ int disk_repaired_raid(int diskn){
   int disk = diskn-1;
   int d = disk;
   wait_disk(raid,&d,0);
-  if(d != -1) printf("Not good");
   printf("repair begins %d %d...\n",disk,d);
   while(i<DISK_SIZE/BSIZE){
-    printf("Repaired block %d\n",i);
     int stripe = 0;
     if(raid == RAID4 || raid == RAID5){
       memset(buf,0,BSIZE);
@@ -341,9 +339,9 @@ int disk_repaired_raid(int diskn){
   disk_flag(disk,1);
   signal_disk(raid,d,0);
   disk = 0;
-  wait_disk(RAID0,&disk,0);
+  wait_disk(raid,&disk,0);
   write_block(1,0,(uchar*)&global_info_raid);
-  signal_disk(RAID0,disk,0);
+  signal_disk(raid,disk,0);
   kfree(buf);
   releasesleep(&raid_lock);
   return 0;
@@ -376,16 +374,10 @@ int destroy_raid(){
   }
   for(int j = 1;j<=DISKS;j++){
     for(int i = 0;i<DISK_SIZE/BSIZE;i++) {
-      if(j==1 && i == 0) continue;
       write_block(j,i,temp);
     }
   }
-  global_info_raid.initialized = 0;
   raid_lock_initialized = 0;
-  int disk = 0;
-  wait_disk(RAID0,&disk,0);
-  write_block(1,0,(uchar*)&global_info_raid);
-  signal_disk(RAID0,disk,0);
   releasesleep(&raid_lock);
   return 0;
 }

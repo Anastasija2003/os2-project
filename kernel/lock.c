@@ -16,6 +16,11 @@ void init_locks(){
     }
 }
 
+void set_parity(int parity){
+    acquire(&raid_lock_p);
+    lock.parity = parity;
+    release(&raid_lock_p);
+}
 void require_all(){
     while (1) {
         int all_free = 1;
@@ -28,7 +33,7 @@ void require_all(){
         }
         if (all_free) {
             for (int i = 0; i < DISKS ; i++) {
-                if(lock.works[i]) lock.busy[i] = 1;
+                lock.busy[i] = 1;
             }
             release(&raid_lock_p);
             break;
@@ -37,9 +42,9 @@ void require_all(){
     }
     for (int i = 0; i < DISKS; i++) {
         acquiresleep(&lock.locks[i]);
-        //printf("Got disk %d\n",i);
     }
 }
+
 
 void disk_flag(int diskn, int flag){
     acquire(&raid_lock_p);

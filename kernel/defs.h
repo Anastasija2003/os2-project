@@ -206,6 +206,7 @@ void            signal5(int diskn,int reader);
 void            signal0_1(int diskn,int reader);
 void            init_locks();
 void            disk_flag(int diskn, int flag);
+void            set_parity(int parity);
 //user.c
 enum RAID_TYPE {RAID0, RAID1, RAID0_1, RAID4, RAID5};
 void            ensure_raid_lock_initialized();
