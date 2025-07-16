@@ -9,10 +9,35 @@ struct spinlock raid_lock_p;
 
 void init_locks(){
     initlock(&raid_lock_p, "global lock");
-    for(int i = 0; i < DISKS - 1; i++){
+    for(int i = 0; i < DISKS; i++){
         lock.works[i] = 1;
         lock.busy[i] = 0;
         initsleeplock(&lock.locks[i], "disk lock");
+    }
+}
+
+void require_all(){
+    while (1) {
+        int all_free = 1;
+        acquire(&raid_lock_p);
+        for (int i = 0; i < DISKS; i++) {
+            if (lock.works[i]==1 && lock.busy[i] == 1) {
+                all_free = 0;
+                break;
+            }
+        }
+        if (all_free) {
+            for (int i = 0; i < DISKS ; i++) {
+                if(lock.works[i]) lock.busy[i] = 1;
+            }
+            release(&raid_lock_p);
+            break;
+        }
+        release(&raid_lock_p);
+    }
+    for (int i = 0; i < DISKS; i++) {
+        acquiresleep(&lock.locks[i]);
+        //printf("Got disk %d\n",i);
     }
 }
 
@@ -30,7 +55,7 @@ void wait0(int *diskn, int reader){
 void wait1(int *diskn, int reader) {
     if (reader == 1) {
         while (1) {
-            for (int i = 0; i < DISKS - 1; i++) {
+            for (int i = 0; i < DISKS; i++) {
                 acquire(&raid_lock_p);
                 if (lock.busy[i] == 0 && lock.works[i] == 1) {
                     lock.busy[i] = 1;
@@ -43,31 +68,56 @@ void wait1(int *diskn, int reader) {
             }
         }
     } else {
-        while (1) {
-            int all_free = 1;
-            acquire(&raid_lock_p);
-            for (int i = 0; i < DISKS - 1; i++) {
-                if (lock.busy[i] == 1) {
-                    all_free = 0;
-                    break;
-                }
-            }
-            if (all_free) {
-                for (int i = 0; i < DISKS - 1; i++) {
-                    if(lock.works[i]) lock.busy[i] = 1;
-                }
-                release(&raid_lock_p);
-                break;
-            }
-            release(&raid_lock_p);
-        }
-        for (int i = 0; i < DISKS - 1; i++) {
-            acquiresleep(&lock.locks[i]);
-        }
+        require_all();
     }
 }
 
-void wait4(int *diskn, int reader) {}
+void wait4(int *diskn, int reader) {
+    if(reader){
+        acquire(&raid_lock_p);
+        if(lock.works[*diskn] == 1){
+            while(1){
+                while(lock.busy[*diskn]==1){
+                    release(&raid_lock_p);
+                    acquire(&raid_lock_p);
+                }
+                if(lock.busy[*diskn]==0){
+                    lock.busy[*diskn] = 1;
+                    break;
+                }
+            }
+            release(&raid_lock_p);
+            acquiresleep(&lock.locks[*diskn]);
+            return;
+        }
+        release(&raid_lock_p);
+        *diskn = -1;
+        require_all();
+    }else{
+        acquire(&raid_lock_p);
+        if(lock.works[*diskn] == 1 && lock.works[DISKS-1] == 1){
+            //printf("Disk %d works\n",*diskn);
+            while(1){
+                while(lock.busy[*diskn] == 1 || lock.busy[DISKS-1] == 1){
+                    release(&raid_lock_p);
+                    acquire(&raid_lock_p);
+                }
+                if(lock.busy[*diskn]==0 && lock.busy[DISKS-1]==0){
+                    lock.busy[*diskn] = 1;
+                    lock.busy[DISKS-1] = 1;
+                    break;
+                }
+            }
+            release(&raid_lock_p);
+            acquiresleep(&lock.locks[*diskn]);
+            acquiresleep(&lock.locks[DISKS-1]);
+            return;
+        }
+        release(&raid_lock_p);
+        *diskn = -1;
+        require_all();
+    }
+}
 void wait5(int *diskn, int reader) {}
 void wait0_1(int *diskn, int reader) {
     int backup_disk = (*diskn) + DISKS/2;
@@ -95,9 +145,12 @@ void wait0_1(int *diskn, int reader) {
         while (1) {
             int all_free = 1;
             acquire(&raid_lock_p);
-            if (lock.busy[*diskn] == 1 || lock.busy[backup_disk]==1) {
+            if (lock.works[*diskn]==1 && lock.busy[backup_disk] == 1) {
                 all_free = 0;
-            }
+            } 
+            if (lock.works[*diskn]==1 && lock.busy[backup_disk] == 1) {
+                all_free = 0;
+            }    
             if (all_free) {
                 if(lock.works[*diskn]) lock.busy[*diskn] = 1;
                 if(lock.works[backup_disk]) lock.busy[backup_disk] = 1;
@@ -123,17 +176,35 @@ void signal1(int diskn, int reader) {
         releasesleep(&lock.locks[diskn]);
     } else {
         acquire(&raid_lock_p);
-        for (int i = 0; i < DISKS - 1; i++) {
+        for (int i = 0; i < DISKS; i++) {
             lock.busy[i] = 0;
         }
         release(&raid_lock_p);
-        for (int i = 0; i < DISKS - 1; i++) {
+        for (int i = 0; i < DISKS ; i++) {
             releasesleep(&lock.locks[i]);
         }
     }
 }
 
-void signal4(int diskn, int reader) {}
+void signal4(int diskn, int reader) {
+    if(diskn == -1){
+        acquire(&raid_lock_p);
+        for (int i = 0; i < DISKS ; i++) {
+            lock.busy[i] = 0;
+        }
+        release(&raid_lock_p);
+        for (int i = 0; i < DISKS; i++) {
+            releasesleep(&lock.locks[i]);
+        }
+    }else{
+        acquire(&raid_lock_p);
+        lock.busy[diskn] = 0;
+        if(reader==0) lock.busy[DISKS-1] = 0;
+        release(&raid_lock_p);
+        releasesleep(&lock.locks[diskn]);
+        if(reader==0) releasesleep(&lock.locks[DISKS-1]);
+    }
+}
 void signal5(int diskn, int reader) {}
 void signal0_1(int diskn, int reader) {
     if (reader == 1) {
