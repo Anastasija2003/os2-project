@@ -4,11 +4,6 @@
 #include "defs.h"
 #include "lock.h"
 
-// Fallback definition if DISKS is not defined by compiler
-#ifndef DISKS
-#define DISKS 6
-#endif
-
 struct lock_info lock;
 struct spinlock raid_lock_p;
 
