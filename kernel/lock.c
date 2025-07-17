@@ -74,6 +74,10 @@ void wait1(int *diskn, int reader) {
 }
 
 void wait4(int *diskn, int reader) {
+    if(*diskn == -1){
+        require_all();
+        return;
+    }
     if(reader){
         acquire(&raid_lock_p);
         if(lock.works[*diskn] == 1){

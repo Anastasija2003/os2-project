@@ -278,32 +278,38 @@ int disk_repaired_raid(int diskn){
   uchar *buf = kalloc();
   if(!buf) return -1;
   ensure_raid_lock_initialized();
+  
+  int d = -1; // Signal to lock all disks
+  wait_disk(global_info_raid.raid_type, &d, 0);
+
   acquiresleep(&raid_lock);
   int disk = diskn-1;
-  int d = disk;
-  wait_disk(global_info_raid.raid_type,&d,0);
-  if(diskn<1 || diskn>DISKS || global_info_raid.initialized == 0 || global_info_raid.broken==1) {
+  if(diskn<1 || diskn>global_info_raid.total_disks || global_info_raid.initialized == 0 || global_info_raid.broken==1) {
     releasesleep(&raid_lock);
+    signal_disk(global_info_raid.raid_type, d, 0);
 	  return -1;
   }
   if(global_info_raid.disks[diskn-1] != 0) {
     releasesleep(&raid_lock);
+    signal_disk(global_info_raid.raid_type, d, 0);
 	  return 0;
   }
   enum RAID_TYPE raid = global_info_raid.raid_type;
   int total_disks = global_info_raid.total_disks;
-  int disks[DISKS];
-  for(int i = 0;i<DISKS;i++){
+  int disks[total_disks];
+  for(int i = 0;i<total_disks;i++){
     disks[i] = global_info_raid.disks[i];
   }
+  releasesleep(&raid_lock);
+
   int i = 0;
   if(diskn==1) i++;
-  printf("repair begins %d %d...\n",disk,d);
+  
   while(i<DISK_SIZE/BSIZE){
     int stripe = 0;
     if(raid == RAID4 || raid == RAID5){
       memset(buf,0,BSIZE);
-      for(int j = 0;j<DISKS;j++){
+      for(int j = 0;j<total_disks;j++){
         if(j != disk){
           if(i==0 && j==0) continue;
           read_block(j+1,i,temp);
@@ -312,7 +318,7 @@ int disk_repaired_raid(int diskn){
       }
     }
     else if(raid == RAID1){
-      for(int j = 0;j<DISKS;j++) {
+      for(int j = 0;j<total_disks;j++) {
         if(disks[j] == 1){
           read_block(j+1,i,buf);
           break;
@@ -321,8 +327,8 @@ int disk_repaired_raid(int diskn){
     }
     else {
         stripe = 0;
-        for(int i = 0;i<total_disks/2;i++) {
-          if(disks[i]==0){
+        for(int k = 0;k<total_disks/2;k++) {
+          if(disks[k]==0){
             stripe = 1;
             break;
           }
@@ -331,16 +337,19 @@ int disk_repaired_raid(int diskn){
         if(stripe == 0) stripe = -1;
         else stripe = 0;
     }
-    write_block(diskn+stripe*total_disks/2,i,buf);
+    write_block(diskn,i,buf);
     i++;
   }
+
+  acquiresleep(&raid_lock);
   global_info_raid.broken = 0;
   global_info_raid.disks[disk] = 1;
   disk_flag(disk,1);
   write_block(1,0,(uchar*)&global_info_raid);
+  releasesleep(&raid_lock);
+  
   signal_disk(raid,d,0);
   kfree(buf);
-  releasesleep(&raid_lock);
   return 0;
 }
 
