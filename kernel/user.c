@@ -277,8 +277,11 @@ int disk_repaired_raid(int diskn){
   uchar temp[BSIZE];
   uchar *buf = kalloc();
   if(!buf) return -1;
-  ensure_raid_lock_initialized();	
+  ensure_raid_lock_initialized();
   acquiresleep(&raid_lock);
+  int disk = diskn-1;
+  int d = disk;
+  wait_disk(global_info_raid.raid_type,&d,0);
   if(diskn<1 || diskn>DISKS || global_info_raid.initialized == 0 || global_info_raid.broken==1) {
     releasesleep(&raid_lock);
 	  return -1;
@@ -295,9 +298,6 @@ int disk_repaired_raid(int diskn){
   }
   int i = 0;
   if(diskn==1) i++;
-  int disk = diskn-1;
-  int d = disk;
-  wait_disk(raid,&d,0);
   printf("repair begins %d %d...\n",disk,d);
   while(i<DISK_SIZE/BSIZE){
     int stripe = 0;
@@ -337,11 +337,8 @@ int disk_repaired_raid(int diskn){
   global_info_raid.broken = 0;
   global_info_raid.disks[disk] = 1;
   disk_flag(disk,1);
-  signal_disk(raid,d,0);
-  disk = 0;
-  wait_disk(raid,&disk,0);
   write_block(1,0,(uchar*)&global_info_raid);
-  signal_disk(raid,disk,0);
+  signal_disk(raid,d,0);
   kfree(buf);
   releasesleep(&raid_lock);
   return 0;

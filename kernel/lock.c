@@ -16,11 +16,6 @@ void init_locks(){
     }
 }
 
-void set_parity(int parity){
-    acquire(&raid_lock_p);
-    lock.parity = parity;
-    release(&raid_lock_p);
-}
 void require_all(){
     while (1) {
         int all_free = 1;
@@ -41,15 +36,16 @@ void require_all(){
         release(&raid_lock_p);
     }
     for (int i = 0; i < DISKS; i++) {
-        acquiresleep(&lock.locks[i]);
-    }
+        if(lock.works[i]) acquiresleep(&lock.locks[i]);
+    }        
 }
 
 
 void disk_flag(int diskn, int flag){
     acquire(&raid_lock_p);
     lock.works[diskn] = flag;
-    if(flag==0) lock.busy[diskn] = 0;
+    if(flag==0) lock.busy[diskn] = 1;
+    else lock.busy[diskn] = 0;
     release(&raid_lock_p);
 }
 
@@ -101,7 +97,6 @@ void wait4(int *diskn, int reader) {
     }else{
         acquire(&raid_lock_p);
         while(1){
-            // Proveravamo da li oba diska rade
             if(lock.works[*diskn] == 0 || lock.works[DISKS-1] == 0){
                 release(&raid_lock_p);
                 *diskn = -1;
@@ -109,16 +104,14 @@ void wait4(int *diskn, int reader) {
                 return;
             }
             
-            // Proveravamo da li su oba diska slobodna i atomski ih zauzimamo
             if(lock.busy[*diskn] == 0 && lock.busy[DISKS-1] == 0){
                 lock.busy[*diskn] = 1;
                 lock.busy[DISKS-1] = 1;
                 break;
             }
             
-            // Oslobađamo lock i čekamo kratko pre ponovnog pokušaja
             release(&raid_lock_p);
-            // Kratka pauza da izbegnemo busy-waiting
+
             acquire(&raid_lock_p);
         }
 
@@ -210,11 +203,11 @@ void signal4(int diskn, int reader) {
     if(diskn == -1){
         acquire(&raid_lock_p);
         for (int i = 0; i < DISKS ; i++) {
-            lock.busy[i] = 0;
+            if(lock.works[i]) lock.busy[i] = 0;
         }
         release(&raid_lock_p);
         for (int i = 0; i < DISKS; i++) {
-            releasesleep(&lock.locks[i]);
+            if(lock.works[i]) releasesleep(&lock.locks[i]);
         }
     }else{
         acquire(&raid_lock_p);

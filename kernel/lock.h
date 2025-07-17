@@ -8,7 +8,6 @@
 struct lock_info {
     int works[7];
     int busy[7];
-    int parity;
     struct sleeplock locks[7];  // do 7 diskova podržano
 };
 
