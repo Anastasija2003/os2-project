@@ -33,7 +33,7 @@ void require_all(){
         }
         if (all_free) {
             for (int i = 0; i < DISKS ; i++) {
-                lock.busy[i] = 1;
+                if(lock.works[i]) lock.busy[i] = 1;
             }
             release(&raid_lock_p);
             break;
@@ -49,7 +49,7 @@ void require_all(){
 void disk_flag(int diskn, int flag){
     acquire(&raid_lock_p);
     lock.works[diskn] = flag;
-    lock.busy[diskn] = 0;
+    if(flag==0) lock.busy[diskn] = 0;
     release(&raid_lock_p);
 }
 
@@ -100,29 +100,44 @@ void wait4(int *diskn, int reader) {
         require_all();
     }else{
         acquire(&raid_lock_p);
-        if(lock.works[*diskn] == 1 && lock.works[DISKS-1] == 1){
-            //printf("Disk %d works\n",*diskn);
-            while(1){
-                while(lock.busy[*diskn] == 1 || lock.busy[DISKS-1] == 1){
-                    release(&raid_lock_p);
-                    acquire(&raid_lock_p);
-                }
-                if(lock.busy[*diskn]==0 && lock.busy[DISKS-1]==0){
-                    lock.busy[*diskn] = 1;
-                    lock.busy[DISKS-1] = 1;
-                    break;
-                }
+        while(1){
+            // Proveravamo da li oba diska rade
+            if(lock.works[*diskn] == 0 || lock.works[DISKS-1] == 0){
+                release(&raid_lock_p);
+                *diskn = -1;
+                require_all();
+                return;
             }
+            
+            // Proveravamo da li su oba diska slobodna i atomski ih zauzimamo
+            if(lock.busy[*diskn] == 0 && lock.busy[DISKS-1] == 0){
+                lock.busy[*diskn] = 1;
+                lock.busy[DISKS-1] = 1;
+                break;
+            }
+            
+            // Oslobađamo lock i čekamo kratko pre ponovnog pokušaja
             release(&raid_lock_p);
-            acquiresleep(&lock.locks[*diskn]);
-            acquiresleep(&lock.locks[DISKS-1]);
+            // Kratka pauza da izbegnemo busy-waiting
+            acquire(&raid_lock_p);
+        }
+
+        if(lock.works[*diskn] == 0 || lock.works[DISKS-1] == 0){
+            lock.busy[*diskn] = 0;
+            lock.busy[DISKS-1] = 0;
+            release(&raid_lock_p);
+            *diskn = -1;
+            require_all();
             return;
         }
         release(&raid_lock_p);
-        *diskn = -1;
-        require_all();
+        
+        acquiresleep(&lock.locks[*diskn]);
+        acquiresleep(&lock.locks[DISKS-1]);
+        return;
     }
 }
+
 void wait5(int *diskn, int reader) {}
 void wait0_1(int *diskn, int reader) {
     int backup_disk = (*diskn) + DISKS/2;

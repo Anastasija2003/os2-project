@@ -86,15 +86,15 @@ main(void)
     }
     if(pids[0] == getpid() && i == 4) {
       disk_fail_raid(3);
-      //printf("izaso fail 3\n");
+      printf("izaso fail 3\n");
       fail = 1;
     }
     if(i == 700) { //500
-      //printf("USOREPAIR\n");
+      printf("USOREPAIR\n");
       if((ret = disk_repaired_raid(3)) < 0) {
         printf("Fatal error in repaired_raid pid = %d, ret = %d\n", getpid(), ret);
       }
-      //printf("Repaired success\n");
+      printf("Repaired success\n");
     }
   }
 
