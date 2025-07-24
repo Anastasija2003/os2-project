@@ -77,13 +77,13 @@ main(void)
     for (int j = 0; j < blks; j++)
       data[j] = noise(i, j);
     int ret = 0;
-    //if(i % 50 == 0) printf("write_%d\n", i);
     if ((ret = write_raid(i, data)) < 0)
     {
       printf("blkn = %d\n", i);
       printf("Fatal error in write_raid pid = %d, ret = %d\n", getpid(), ret);
       exit(-2);
     }
+    //printf("w_%d\n", i);
     if(pids[0] == getpid() && i == 4) {
       disk_fail_raid(3);
       printf("izaso fail 3\n");
@@ -102,13 +102,13 @@ main(void)
   {
     for (int j = 0; j < blks; j++)
       data[j] = 'c';
-    //if(i % 50 == 0) printf("read_%d\n", i);
     if (read_raid(i, data) < 0)
     {
       printf("Fatal error in read_raid\n");
       exit(-3);
     }
 
+    //printf("r_%d\n", i);
     for (int j = 0; j < blks; j++)
       if (data[j] != noise(i, j))
       {
