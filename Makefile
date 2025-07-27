@@ -33,10 +33,6 @@ OBJS = \
   $K/raid.o \
   $K/lock.o
 
-# riscv64-unknown-elf- or riscv64-linux-gnu-
-# perhaps in /opt/riscv/bin
-#TOOLPREFIX = 
-
 # Try to infer the correct TOOLPREFIX if not set
 ifndef TOOLPREFIX
 TOOLPREFIX := $(shell if riscv64-unknown-elf-objdump -i 2>&1 | grep 'elf64-big' >/dev/null 2>&1; \
@@ -54,11 +50,15 @@ endif
 
 
 ifndef DISKS
-DISKS := 6 # How many RAID disks
+DISKS := 5 # How many RAID disks
 endif
 
 ifndef DISK_SIZE
-DISK_SIZE := 1048576
+DISK_SIZE := 1M
+endif
+
+ifndef DISKSIZEK
+DISKSIZEK := $(shell numfmt --from=iec $(DISK_SIZE))
 endif
 
 RAID_DISKS = $(shell count=`expr $(DISKS) - 1`; for i in `seq 0 $$count`; do echo -n "disk_$$i.img "; done)
@@ -74,7 +74,7 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2 -DDISKS=$(DISKS) -DDISK_SIZE=$(DISK_SIZE) -DMEM=$(MEM)
+CFLAGS = -Wall -Werror -O0 -fno-omit-frame-pointer -ggdb -gdwarf-2 -DDISKS=$(DISKS) -DMEM=$(MEM) -DDISKSIZE=$(DISKSIZEK)
 CFLAGS += -MD
 CFLAGS += -mcmodel=medany
 CFLAGS += -ffreestanding -fno-common -nostdlib -mno-relax
@@ -152,11 +152,12 @@ UPROGS=\
 	$U/_zombie\
 	$U/_maxout_vm\
 	$U/_javni_test\
-	$U/_raid0\
 	$U/_raid1\
+	$U/_raid0\
 	$U/_raid0_1\
 	$U/_raid4\
 	$U/_raid5\
+
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
@@ -180,11 +181,11 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	else echo "-s -p $(GDBPORT)"; fi)
 
 ifndef CPUS
-CPUS := 5
+CPUS := 2
 endif
 
 ifndef MEM
-MEM := 16M
+MEM := 512M
 endif
 
 QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m $(MEM) -smp $(CPUS) -nographic

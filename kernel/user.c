@@ -64,10 +64,10 @@ int init_raid(enum RAID_TYPE raid){ // NEMA PARALELIZACIJE
   global_info_raid.raid_type = raid;
   global_info_raid.broken = 0;
   global_info_raid.total_disks = DISKS;
-  if(raid == RAID1) global_info_raid.total_blocks = DISK_SIZE/BSIZE -1 ;
-  else if(raid == RAID4 || raid == RAID5) global_info_raid.total_blocks = (DISKS-1)*(DISK_SIZE/BSIZE)-1;
-  else if(raid == RAID0_1) global_info_raid.total_blocks=(DISKS/2)*(DISK_SIZE/BSIZE)-1;
-  else if(raid == RAID0) global_info_raid.total_blocks = DISKS*(DISK_SIZE/BSIZE)-1;
+  if(raid == RAID1) global_info_raid.total_blocks = DISKSIZE/BSIZE -1 ;
+  else if(raid == RAID4 || raid == RAID5) global_info_raid.total_blocks = (DISKS-1)*(DISKSIZE/BSIZE)-1;
+  else if(raid == RAID0_1) global_info_raid.total_blocks=(DISKS/2)*(DISKSIZE/BSIZE)-1;
+  else if(raid == RAID0) global_info_raid.total_blocks = DISKS*(DISKSIZE/BSIZE)-1;
   for(int i = 0;i<DISKS;i++){
     global_info_raid.disks[i] = 1;
   }
@@ -310,7 +310,7 @@ int disk_repaired_raid(int diskn){
   int i = 0;
   if(diskn==1) i++;
   printf("Started repair");
-  while(i<DISK_SIZE/BSIZE){
+  while(i<DISKSIZE/BSIZE){
     int stripe = 0;
     if(raid == RAID4 || raid == RAID5){
       memset(buf,0,BSIZE);
@@ -385,7 +385,7 @@ int destroy_raid(){
     return -1;
   }
   for(int j = 1;j<=DISKS;j++){
-    for(int i = 0;i<DISK_SIZE/BSIZE;i++) {
+    for(int i = 0;i<DISKSIZE/BSIZE;i++) {
       write_block(j,i,temp);
     }
   }

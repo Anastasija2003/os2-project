@@ -2070,9 +2070,9 @@ sbrkmuch(char *s)
   a = sbrk(0);
   amt = BIG - (uint64)a;
   p = sbrk(amt);
-
   if (p != a) {
     printf("%s: sbrk test failed to grow big address space; enough phys mem?\n", s);
+    
     exit(1);
   }
 
@@ -2433,15 +2433,16 @@ textwrite(char *s)
 
   pid = fork();
   if(pid == 0) {
-    volatile int *addr = (int *) 0;
+    volatile int *addr = (int *) 0xFFFFFFFFFFFF;
     *addr = 10;
     exit(1);
   } else if(pid < 0){
     printf("%s: fork failed\n", s);
     exit(1);
   }
+  
   wait(&xstatus);
-  if(xstatus == -1)  // kernel killed child?
+  if(xstatus == -1) // kernel killed child?
     exit(0);
   else
     exit(xstatus);
